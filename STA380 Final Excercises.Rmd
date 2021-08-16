@@ -1,0 +1,987 @@
+---
+title: "STA380 Final Excercises"
+author: "Rohan Garg, Nir Rauch, Jacob Rhymes, Rianna Patel"
+output: pdf_document
+---
+
+```{r, include=FALSE}
+
+library(ggplot2)
+library(GGally) 
+
+#reading in the data
+mydata<-read.csv("greenbuildings.csv")
+#mydata = greenbuildings
+```
+#Visual Story Telling 1: GreenBuildings
+
+```{r, include=FALSE}
+mydata$renovated = as.factor(mydata$renovated)
+mydata$class_a = as.factor(mydata$class_a)
+mydata$class_b = as.factor(mydata$class_b)
+mydata$LEED = as.factor(mydata$LEED)
+mydata$Energystar = as.factor(mydata$Energystar)
+mydata$green_rating = as.factor(mydata$green_rating)
+mydata$amenities = as.factor(mydata$amenities)
+```
+
+Regarding the analysis performed by the "stats guru," we believe that he does decent introductory exploration, but neglects a multitude of key factors including leasing rate and building quality in green versus nongreen buildings, which confounds his results.
+
+While our study does replicate some of his ideas, we provide a more complete analysis below: 
+We began our exploratory analysis by creating density plots of some explanatory variables.
+
+&nbsp;
+
+Rent Density:
+
+```{r fig1, fig.height= 3, fig.width = 4, echo=FALSE}
+#rent density
+mydata %>%
+  ggplot( aes(x=Rent)) +
+  geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8) +
+  ggtitle("Density of Rent Prices")
+```
+
+Rent density for all homes appears approxomately normal. 
+
+&nbsp;
+
+Square Footage Density:
+
+```{r fig2, fig.height= 3, fig.width = 4, echo=FALSE}
+#square footage density
+mydata %>%
+  ggplot( aes(x=size)) +
+  geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8) +
+  ggtitle("Density of Square Footage")
+  options(scipen=10000)
+```
+
+Square footage density is concentrated at the lower end. This seems obvious.
+
+&nbsp;
+
+Leasing Rate Density:
+
+```{r fig3, fig.height= 3, fig.width = 4, echo=FALSE}
+#leasing rate density
+mydata %>%
+  ggplot( aes(x=leasing_rate)) +
+  geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8) +
+  ggtitle("Density of occupancy")
+```
+
+Leasing rate is, for the most part, above 75%.
+
+However, we see what the "status guru" noted: a small but noticeable amount of occupies are below 10%. 
+We also decide to remove these, as they may be unoccupied or typos.
+
+```{r, include=FALSE}
+#removing all of the buildings with less than 10% leasing rate
+mydata = mydata[mydata$leasing_rate >= 10,]
+```
+
+&nbsp;
+
+Stories Density:
+
+```{r fig4, fig.height= 3, fig.width = 4, echo=FALSE}
+mydata %>%
+  ggplot( aes(x=stories)) +
+  geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8) +
+  ggtitle("Density of stories")
+```
+
+Nothing unexpected to report here.
+&nbsp;
+&nbsp;
+
+Next, we ran a multiple linear regression predicting our Rent variable. This is simply meant to determine variable importances, and give our exploratory analysis some additional context.
+
+```{r, include=FALSE}
+#creating expected rent variable, leasng rate * rent (expected money per room)
+mydata$expected_rent = (.01)*mydata$leasing_rate*mydata$Rent
+```
+
+
+```{r, include= FALSE}
+#fitting a linear regression
+fit <- lm(Rent ~ size + empl_gr + leasing_rate + stories + age + renovated + class_a + class_b + green_rating + LEED + Energystar + net + amenities + cd_total_07 + hd_total07 + total_dd_07 + Precipitation + Gas_Costs + Electricity_Costs, data = mydata)
+summary(fit)
+```
+
+&nbsp;
+
+**Variables that were significant at all levels are:**
+
+&nbsp;
+*Size
+
+&nbsp;
+*Employment Growth
+
+&nbsp;
+*Leasing Rate
+
+&nbsp;
+*Stories
+
+&nbsp;
+*Renovated
+
+&nbsp;
+*Class A1
+
+&nbsp;
+*Class B1
+
+&nbsp;
+*Net Contract Rent
+
+&nbsp;
+*Cooling Days
+
+&nbsp;
+*Heating Days
+
+&nbsp;
+*Precipitation
+
+&nbsp;
+*Gas Costs
+
+&nbsp;
+*Electricity Costs
+&nbsp;
+
+&nbsp;
+
+**Variables that were significant at the 5% level are:**
+
+&nbsp;
+*Ameneties 
+
+&nbsp;
+*Age
+
+&nbsp;
+
+Surprisingly, LEED, Energystar, and Green Rating are all insignificant.
+
+We assume that this insignificance is because there is multicolinearity between Green Rating and other important variables, like Leasing Rate, Age, Size, Renovated, Gas Costs and Electricity Costs. 
+
+Investigating this led us to the realization that, due to the clustered nature of the data, which is averaged by all buildings in the location, we cannot evaluate the Gas Costs, or Electricity Costs for Green versus Non-green buildings. 
+However, Leasing Rate, Age, Size and Renovated are all not subject to clustering averages.
+
+
+&nbsp;
+
+**Next, we split the data into Green Buildings and Non-Green Buildings**
+
+```{r, include=FALSE}
+#all buildings that are green, all buildings that aren't green
+greenbuildings <- mydata[mydata$green_rating == 1,]
+nongreen <- mydata[mydata$green_rating != 1,]
+```
+
+Now we compare the square footage of Green and Non-Green buildings
+
+```{r fig5, fig.height= 3, fig.width = 4, echo=FALSE}
+#histograms of square footage and stories if a building is green or not
+qplot(greenbuildings$size,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green Buildings Size",  
+      fill=I("blue"), 
+      col=I("red"),
+      bins=30,
+      alpha=I(.2))
+
+qplot(nongreen$size,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Non-Green Buildings Size",  
+      fill=I("blue"), 
+      col=I("red"), 
+      bins=30,
+      alpha=I(.2))
+```
+
+The building sizes are consistent.
+
+&nbsp;
+
+We suspect that green buildings may have a higher average leasing rate.
+```{r, echo=FALSE}
+bp2<-ggplot(mydata, aes(x=green_rating, y=leasing_rate, color=green_rating)) +
+  geom_boxplot() +
+  coord_flip()
+bp2
+```
+
+Leasing rates in green buildings:
+
+```{r, echo=FALSE}
+summary(greenbuildings$leasing_rate)
+```
+
+Leasing rates in nongreen buildings:
+```{r, echo=FALSE}
+summary(nongreen$leasing_rate)
+```
+
+Green buildings do have a higher leasing rate, by about 5%. We use the mean to evaluate this, because outliers are not a problem in evaluating leasing rate. This was overlooked by the stats guru. What an idiot.
+
+&nbsp;
+
+&nbsp;
+
+We also suspect that green buildings have higher average rents than non-green buildings.
+```{r, echo=FALSE}
+bp2<-ggplot(mydata, aes(x=green_rating, y=Rent, color=green_rating)) +
+  geom_boxplot() +
+  coord_flip()
+bp2
+```
+
+Rent in green buildings:
+
+```{r, echo=FALSE}
+summary(greenbuildings$Rent)
+```
+
+Rent in nongreen buildings:
+```{r, echo=FALSE}
+summary(nongreen$Rent)
+```
+
+They do, by about $2.50, we use median here because rent is subject to outliers. This conclusion is similar to the stats guru.
+
+
+&nbsp;
+
+Next we create a variable called "Expected Rent," which multiplies leasing rate by rent, and determines the expected monthly rent per room.
+
+
+&nbsp;
+
+Visualizing expected rent for green and Non-Green buildings
+
+
+```{r fig6, fig.height= 4, fig.width = 5, echo=FALSE}
+qplot(greenbuildings$expected_rent,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green Expected Rent",
+      fill=I("blue"), 
+      bins=30,
+      col=I("red"), 
+      alpha=I(.2))
+```
+Expected rent in green buildings:
+
+```{r, echo=FALSE}
+summary(greenbuildings$expected_rent)
+```
+
+
+```{r fig7, fig.height= 4, fig.width = 5, echo=FALSE}
+qplot(nongreen$expected_rent,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Nongreen Expected Rent",
+      fill=I("blue"), 
+      bins=30,
+      col=I("red"), 
+      alpha=I(.2))
+```
+
+Expected rent in nongreen buildings:
+
+```{r, echo=FALSE}
+summary(nongreen$expected_rent)
+```
+
+When comparing expected rent per  room, green buildings win by about $3.
+
+We visualize this relationship again below with a boxplot.
+
+```{r, echo=FALSE}
+bp3<-ggplot(mydata, aes(x=green_rating, y=expected_rent, color=green_rating)) +
+  geom_boxplot() +
+  coord_flip()
+bp3
+```
+
+
+Unlike the stats guru, we are not comfortable estimating the time it would take to make the $5 million dollars back, because we do not know the room sizes, the exact location (where in Austin), the demand for green housing in Austin relative to other cities, or what the heating and cooling days may look like, among many other potential confounders. However, we can confidently say that there are higher rents **and** higher leasing rates in green buildings than in non-green buildings.
+
+
+Finally, if she is going to build a green building, we want to determine wether class A or class B is more cost-efficient.
+
+We separate our green buildings into green A and green B.
+
+````{r, include=FALSE}
+#####separating green buildings into classes
+greena <- greenbuildings[greenbuildings$class_a == 1,]
+greenb <- greenbuildings[greenbuildings$class_b ==1,]
+```
+
+
+First, we look at the rent of green A versus green B buildings.
+
+```{r, fig.height= 3, fig.width = 4, echo=FALSE}
+qplot(greena$Rent,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green A Rent",  
+      fill=I("blue"), 
+      col=I("red"), 
+      bins=30,
+      alpha=I(.2))
+summary(greena$Rent)
+
+qplot(greenb$Rent,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green B Rent",  
+      fill=I("blue"), 
+      col=I("red"), 
+      bins=30,
+      alpha=I(.2))
+summary(greenb$Rent)
+```
+Green A has a higher Rent by about $4.
+This is expected.
+
+Next, we look at the difference in leasing rate between green A and green B buildings.
+```{r, fig.height= 3, fig.width = 4,echo=FALSE}
+qplot(greena$leasing_rate,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green A Leasing Rate",  
+      fill=I("blue"), 
+      col=I("red"), 
+      bins=30,
+      alpha=I(.2))
+summary(greena$leasing_rate)
+
+qplot(greenb$leasing_rate,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green B Leasing Rate",  
+      fill=I("blue"), 
+      col=I("red"), 
+      bins=30,
+      alpha=I(.2))
+summary(greenb$leasing_rate)
+```
+Green A is also about 4% more occupied.
+This was not expected, and leads us to conclude that she should build a nicer green building (type A).
+
+Finally, we compare the expected rent of both building types.
+
+```{r, fig.height= 3, fig.width = 4,echo=FALSE}
+qplot(greena$expected_rent,
+     geom="histogram",
+     ylab = "Frequency", 
+     xlab = "Green A Expected Rent",  
+     fill=I("blue"), 
+     col=I("red"), 
+     bins=30,
+     alpha=I(.2))
+summary(greena$expected_rent)
+
+qplot(greenb$expected_rent,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green B Expected Rent",  
+      fill=I("blue"), 
+      col=I("red"), 
+      bins=30,
+      alpha=I(.2))
+summary(greenb$expected_rent)
+```
+As anticipated, the expected rent is higher for green A buildings. However, looking at the leasing_rates is more informative here.
+
+&nbsp;
+
+We conclude that a green building, on average, generates more money per-room, due to a mixture of higher rents and higher leasing rates. Additionally, green A buildings are 4% more occupied than green B buildings. More research regarding external factors is necessary in deciding to proceed with the project, but if the choice to proceed is made, she should build a green type A building.
+
+#Visual Story Telling 2: Flights at ABIA
+
+```{r, warning=FALSE, include=FALSE}
+#ABIA <- read.csv("C:/MSBA22/STA380/Stats Repo/data/ABIA.csv")
+library(ggplot2)
+library(plyr)
+library(dplyr)
+ABIA = read.csv('ABIA.csv')
+
+ABIA$DayOfWeek = factor(ABIA$DayOfWeek)
+
+ABIAclean = ABIA
+ABIAclean[is.na(ABIAclean)] = 0
+
+#Subset where Arrival was delayed. 
+delays = ABIAclean[ABIAclean$ArrDelay>0,]
+#Keeping all forms of delay and Airline 
+delays = delays[,c(15,16,25:29,9)]
+delays_ = delays[c(3:7)]
+delays_[is.na(delays_)] = 0
+#Finds max value for delay and puts col name in Longest day 
+delays$LongestDelay = colnames(delays_)[apply(delays_,1,which.max)]
+#delays$ArrDelay = ABIA$ArrDelay[delays,]
+carrier_vals = as.data.frame(table(delays$UniqueCarrier))
+names(carrier_vals) = c('UniqueCarrier','Freq')
+delays = join(delays,carrier_vals, by = 'UniqueCarrier', type='left')
+```
+
+In evaluating the flights into and out of Austin, we first looked at the delays grouped by the day of the week.
+
+&nbsp;
+
+```{r Data Exploration, echo=FALSE}
+ggplot(ABIAclean, aes(x=ArrDelay, y=DayOfWeek, color=DayOfWeek)) +
+  geom_boxplot() +
+  coord_flip()
+
+
+
+```
+There is no obvious difference in arrival delays per day of the week.
+
+&nbsp;
+
+Next, we decided to give this analysis a bit more context by evaluating the number of flights into and out of Austin by airline. 
+
+&nbsp;
+
+```{r fig.height= 4, fig.width = 8,echo=FALSE}
+ggplot(ABIAclean, aes(UniqueCarrier, color = UniqueCarrier)) +
+    geom_bar(fill = 'white') 
+
+
+```
+
+Southwest and American Airlines have the most flights in and out of Austin. More importantly, there is a good bit of variation in flight total by airline. 
+
+&nbsp;
+
+
+Next, we looked at the total delay time for each airline, shaded by the cause of the delay.
+
+&nbsp;
+
+
+```{r, fig.height= 4.5, fig.width = 8,echo=FALSE}
+ggplot(delays, aes( x = UniqueCarrier, y = ArrDelay, fill = LongestDelay ) ) + 
+      geom_bar( stat = "identity", position = "stack" ) +
+      #coord_flip() +
+      scale_fill_brewer( palette = "YlGnBu" ) +
+      theme_minimal() + theme(legend.position = "bottom" )+
+      ggtitle('Airlines By Cause of Delay')
+
+```
+As we noted previously, Southwest and American Airlines make the most flights in and out of ABIA, and thus have the most delay. As we can see, the most frequent cause of delays is 'Late Aircraft Delay' indicating there may be some timeliness issues with the pilots and crews at ABIA. 
+
+
+&nbsp;
+
+Finally, we decide to standardize total delay time for number of flights. This allows us to visualize and evaluate airline efficiency without the confounding factor of flight count.
+
+&nbsp;
+
+```{r, fig.height= 4.5, fig.width = 8,echo=FALSE}
+ggplot(delays, aes( x = UniqueCarrier, y = ArrDelay/Freq, fill = LongestDelay ) ) + 
+      geom_bar( stat = "identity")+
+      #coord_flip() +
+      scale_fill_brewer( palette = "YlGnBu" ) +
+      theme_minimal() + theme(legend.position = "bottom" )+
+      ggtitle('Airlines By Cause of Delay, Standardized for total Flights')
+
+```
+
+&nbsp;
+
+As we can see on this chart, JetBlue (IATA Code: B6) has the longest delays per flight, and  Puerto Rico Airline (IATA Code: US) has the least delayed flights on average. ExpressJet (IATA Code: EV) had the most weather delays per flight of any airline followed by PSA (IATA Code: OH). To counter this, these two airlines had some of the lowest 'Late Aircraft Delay' minutes indicating that the airline is successful in employing efficient pilots and crews. Mesa Airlines (IATA Code: YV) has the longest average carrier delay indicating they may not be the best option for those on a tight schedule.
+
+---
+title: "P3 KNIT"
+output: html_document
+---
+
+#Problem 3: Portfolio Modeling
+
+```{r Portfolio Modeling, include=FALSE}
+library(mosaic)
+library(quantmod)
+library(foreach)
+
+# Import a few stocks
+#mystocks = portfoliox
+
+
+
+portfolio1 = c("SPY", "VTI", "VOO", "QQQ", "DIA", "SCHX")
+portfolio2 = c("VDE", "XES", "PSCE", "PXE")
+portfolio3 = c("VWO", "SCHE", "GEM", "JEMA", "SPEM")
+
+portfolios = list(portfolio1,portfolio2,portfolio3)
+```
+
+
+In this Monte Carlo Simulation we were tasked with comparing 3 portfolios of ETFs and comparing their performance. 
+
+Our team selected to create **Portfolio 1** using 6 of the largest ETFs on the market, focused on Large Cap Growth Stocks. These ETFs typically hold the large tech companies like Apple, Microsoft, and Alphabet, as well as other Blue Chip firms like Berkshire Hathaway, Johnson and Johnson, and JP Morgan Chase. The often track indexes like the S&P 500 or DJI to track the market, however focus on long term growth for their holders. 
+
+**Portfolio 1 = Large Cap Growth:**
+
+&nbsp;
+*SPY - S&P 500 ETF Trust*
+
+&nbsp;
+*VTI - Vanguard Total Stock Market ETF*
+
+&nbsp;
+*VOO - Vanguard S&P 500 ETF*
+
+&nbsp;
+*QQQ - Invesco QQQ Trust*
+
+&nbsp;
+*DIA - Dow Jones Indus Average ETF*
+
+&nbsp;
+*SCHX - Schwab US Large Cap ETF*
+
+&nbsp;
+
+
+**Portfolio 2** is focused on Energy ETFs. These funds invest in energy companies, research groups, and commodities to achieve returns on the fluctuating energy market. The last year in particular has been incredibly volatile for energy companies, and our team figured it would be interesting to see the difference between a stable portfolio like Portfolio 1 and a volatile one like Portfolio 2. 
+
+
+**Portfolio 2 = Energy (Oil Gas):** 
+
+&nbsp;
+*VDE - Vanguard Energy*
+
+&nbsp;
+*XES - S&P oil and gas*
+
+&nbsp;
+*PSCE - Small Cap Energy Fund*
+
+&nbsp;
+*PXE - Oil and gas exploration*
+
+&nbsp;
+
+
+**Portfolio 3** contains 5 Emerging Market Funds, intentionally not focused on a specific region or state. While a vast majority of the companies held in Portfolio 1 are American, our team wanted to investigate how successful nations deemed "emerging markets" have been, particularly with data that includes the Covid-19 market crashes. Some of the countries represented in this portfolio are: China, South Africa, South Korea, Russia, and India. 
+
+**Portfolio 3 = Emerging Markets:**
+
+&nbsp;
+*VWO - Vanguard Emerging Markets*
+
+&nbsp;
+*SCHE - Schwab Emerging Markets*
+
+&nbsp;
+*GEM - Goldman Sachs Emerging Markets*
+
+&nbsp;
+*JEMA - JP Morgan Emerging Markets*
+
+&nbsp;
+*SPEM - S&P Emerging Funds*
+
+```{r Monte Carlo Simulation for Each Portfolio, echo=FALSE, getSymbols.warning4.0=FALSE, warning=FALSE}
+
+#for each portfolio:
+counterr=1
+
+for (portfolio in portfolios) {
+  adjport = c()
+
+  #Import
+  my_prices = getSymbols(portfolio, from = "2016-08-09")
+  
+  
+  #adjust all etfs
+  for(ticker in portfolio) {
+	  expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+	  eval(parse(text=expr))
+	  
+	  #Add adjusted etf names to a list to use for all returns
+	  adjport = append(adjport,paste0(ticker, "a"))
+  }
+  all_returns = cbind()
+  for (r in adjport) {
+    #print(r)
+    all_returns = cbind(all_returns,ClCl(eval(parse(text=r))))
+  }
+  #head(all_returns)
+  all_returns = as.matrix(na.omit(all_returns))
+  #pairs(all_returns)
+  
+  #return.today = resample(all_returns, 1, orig.ids=FALSE)
+  
+  initial_wealth = 100000
+
+  sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+	        total_wealth = initial_wealth
+          weights = c(rep(1/length(portfolio),length(portfolio)))	
+          holdings = weights * total_wealth
+        	n_days = 20
+        	wealthtracker = rep(0, n_days)
+        	for(today in 1:n_days) {
+        		return.today = resample(all_returns, 1, orig.ids=FALSE)
+        		holdings = holdings + holdings*return.today
+        		total_wealth = sum(holdings)
+        		wealthtracker[today] = total_wealth
+        		holdings = weights * total_wealth
+        	  }
+        	wealthtracker
+  }
+  
+  # each row is a simulated trajectory
+  # each column is a data
+  #print(head(sim1))
+  hist(sim1[,n_days], 25,
+       main = paste0("Portfolio ", counterr, " total expected value"))
+  
+  # Profit/loss
+  print(paste("The expected value is ",mean(sim1[,n_days])))
+  hist(sim1[,n_days]- initial_wealth, breaks=30,
+       main = paste0("Portfolio ", counterr, " total expected gain"))
+  print(paste("The expected gain is: ", mean(sim1[,n_days] - initial_wealth)))
+  
+
+  # 5% value at risk:
+  print(paste0("The 5% VAR is: $", abs(quantile(sim1[,n_days]- initial_wealth, prob=0.05))))
+  
+  # note: this is  a negative number (a loss, e.g. -500), but we conventionally
+  # express VaR as a positive number (e.g. 500)
+  
+  counterr = counterr+1
+}  
+```
+
+Within the last 5 years, the stock market has faired relatively well. For the first 3.5 years, the market was considered one of the strongest ever and investors were astounded at their returns. Since March of 2019, the Covid-19 pandemic hampered the market for months and caused a crash. Since this period the market has recovered, however this variability in total market performance may yield interesting returns in this simulation. 
+
+For Portfolio 1 (Large Cap Growth funds), over a 5000 day simulation, we were able to earn \$1577.157. This is approximately a 1.5% return which is modest given the time period. At the 5% risk level, this portfolio's VaR was \$7068.17, indicating that in the worst 5% of cases, this portfolio lost around 7% of it's initial value. In the Histograms for Portfolio 1, we can see a data point that achieved over a $30,000 gain which is pretty spectacular for any ETF over 5000 simulations. Overall, Large Cap 'Growth' funds do not appear to have grown that consistently in the last 5 years. 
+
+For Portfolio 2 (Energy Based Funds), the model actually predicted a \$471 loss. The range of performances by Portfolio 2 is far greater than in Portfolio 1. This is due to the energy market being more volatile and feeling the impacts of market fluctuations more than stable Large Cap Stocks. At the 5% VaR level this portfolio is expected to lose \$19427 which is almost 20% of the initial starting value. Some portfolios were able to gain and lose about 60% of the initial value which is incredible. 
+
+For Portfolio 3 (Foreign Market Funds), the simulation predicted essentially breaking even (\$26 loss). These funds appear to be more stable than the Energy funds as the VaR is only \$6900 and no porfolio made or lost more than \$15000. 
+
+#Problem 4: Market Segmentation
+
+
+
+#Problem 5 Author Attribution
+
+```{r Data Cleaning}
+library(tm)
+library(tmap)
+## COMBINING ALL 50 DIRECTORIES INTO ONE CORPUS 
+author_dirs = Sys.glob('C:/MSBA22/STA380/Stats Repo/data/ReutersC50/C50train/*')
+author_dirs = author_dirs[1:50]
+file_list = NULL
+labels = NULL
+
+for(author in author_dirs) {
+  author_name = substring(author, first=29)
+  files_to_add = Sys.glob(paste0(author, '/*.txt'))
+  file_list = append(file_list, files_to_add)
+  labels = append(labels, rep(author_name, length(files_to_add)))
+}
+
+## This wraps another function around readPlain to read
+## plain text documents in English.
+readerPlain = function(fname){
+  readPlain(elem=list(content=readLines(fname)), 
+            id=fname, language='en') }
+
+#READ IN ALL DOCS INTO VECOTR
+all_docs = lapply(file_list, readerPlain) 
+names(all_docs) = file_list
+names(all_docs) = sub('.txt', '', names(all_docs))
+
+#CREATE TEXT MINING CORPUS
+my_corpus = Corpus(VectorSource(all_docs))
+
+
+#PREPROCESSING/TOKENIZATION
+# make everything lowercase
+my_corpus = tm_map(my_corpus, content_transformer(tolower)) 
+# remove numbers
+my_corpus = tm_map(my_corpus, removeNumbers) 
+# remove punctuation
+my_corpus = tm_map(my_corpus, content_transformer(removePunctuation))
+# remove excess white-space
+my_corpus = tm_map(my_corpus, content_transformer(stripWhitespace)) 
+# Remove SMART stopwords
+my_corpus = tm_map(my_corpus, content_transformer(removeWords), stopwords("SMART"))
+```
+
+```{r Training Set Matrix}
+#FORM DOCUMENT TERM MATRIX
+DTM = DocumentTermMatrix(my_corpus)
+#STATS
+#DTM 
+class(DTM)
+#Removing Sparse Items
+DTM=removeSparseTerms(DTM,.99)
+tf_idf_mat = weightTfIdf(DTM)
+# DENSE MATRIX
+X = as.matrix(DTM)
+
+```
+
+```{r Test Set Matrix}
+###################
+###TEST DATA SET###
+###################
+
+## COMBINING ALL 50 DIRECTORIES INTO ONE CORPUS 
+test_author_dirs = Sys.glob('C:/MSBA22/STA380/Stats Repo/data/ReutersC50/C50test/*')
+test_author_dirs = test_author_dirs[1:50]
+test_file_list = NULL
+test_labels = NULL
+files_to_add = NULL
+for(author in test_author_dirs) {
+  author_name = substring(author, first=29)
+  files_to_add = Sys.glob(paste0(author, '/*.txt'))
+  test_file_list = append(test_file_list, files_to_add)
+  test_labels = append(test_labels, rep(author_name, length(files_to_add)))
+}
+
+#READ IN ALL DOCS INTO VECOTR
+test_docs = lapply(test_file_list, readerPlain) 
+names(test_docs) = test_file_list
+names(test_docs) = sub('.txt', '', names(test_docs))
+
+#CREATE TEXT MINING CORPUS
+test_corpus = Corpus(VectorSource(test_docs))
+
+
+#PREPROCESSING/TOKENIZATION OF TEST SET
+# make everything lowercase
+test_corpus = tm_map(test_corpus, content_transformer(tolower)) 
+# remove numbers
+test_corpus = tm_map(test_corpus, content_transformer(removeNumbers)) 
+# remove punctuation
+test_corpus = tm_map(test_corpus, content_transformer(removePunctuation))
+# remove excess white-space
+test_corpus = tm_map(test_corpus, content_transformer(stripWhitespace)) 
+# Remove SMART stop words
+test_corpus = tm_map(test_corpus, content_transformer(removeWords), stopwords("SMART"))
+
+#FORM TEST DOCUMENT TERM MATRIX
+DTM_test = DocumentTermMatrix(test_corpus)
+DTM_test=removeSparseTerms(DTM_test,.99)
+tf_idf_mat_test = weightTfIdf(DTM)
+class(DTM_test)
+
+
+# DENSE MATRIX
+Y = as.matrix(DTM_test)
+
+
+```
+
+```{r Modeling Set Up}
+library(stylo)
+#making list of authors to attribute to
+apauth = NULL
+for(author in author_dirs){
+  a = strsplit(author,'/')
+  a = a[[1]][length(a[[1]])]
+  ap = rep(a,50)
+  counter = 1
+  for(art in ap){
+    apauth = append(apauth, paste0(art,'_',counter))
+    counter = counter + 1
+  }
+  
+}
+#creating df of Term Matrix
+xdup = as.data.frame(X)
+row.names(xdup) = apauth
+ydup = as.data.frame(Y)
+row.names(ydup) = apauth
+
+#Removing words not included in both matrices 
+shared = intersect(colnames(xdup),colnames(ydup))
+xdup = xdup[,shared]
+ydup = ydup[,shared]
+```
+
+For Author Attributions, the modeling package Stylo was used. The task was to predict which author from a set of 50 authors wrote a Reuters article from a set of 2500 articles.
+
+1) The training set was read into a vector with each row being one Article and the value being the text. 
+2) This vector was then converted to a 'Corpus' Object in R. 
+3) Tokenization was performed on the Corpus by:
+    - Converting all characters to lower case
+    - Removing numbers
+    - Removing punctuation
+    - Stripping the white space
+    - Removing the 'SMART' set of stop words.
+4) The tokenized corpus was converted to a Document Term Matrix, with common tokens as columns and each article as a row.
+5) Steps 1-4 are repeated for the test set
+6) The training and test matrices are the given the original authors as row names (As required by Stylo)
+7) Initially, we ran a K-Nearest Neighbor with K = 10. Followed by K = 1 and a Naive Bayes Model.
+
+```{r KNN K: 10}
+#KNN Model
+mod1 = stylo::perform.knn(xdup,ydup,k.value = 10)
+
+
+#Calculate Accuracy
+
+print("K Nearest Neighbors (K=10) Accuracy:")
+performance.measures(mod1)$accuracy
+
+
+```
+
+```{r KNN K: 1}
+#KNN Model
+mod3 = stylo::perform.knn(xdup,ydup,k.value = 1)
+
+#Calculate Accuracy
+
+print("K Nearest Neighbors (K=1) Accuracy:")
+performance.measures(mod3)$accuracy
+```
+
+```{r Naive Bayes}
+mod2 = stylo::perform.naivebayes(xdup,ydup)
+
+print("Naive Bayes Accuracy:")
+performance.measures(mod2)$accuracy
+
+```
+Out of these three classification models, K-Nearest neighbors with K = 1had the highest accuracy at 36.96%. 
+    - Accuracy for K = 10: 32.28%
+    - Accuracy for Naive Bayes: 9.88%
+    
+This performance of the K=1 model is likely due to authors maintaining a consistent writing style so the Nearest Neighbor to each test document is an article by the same author.  
+
+#Problem 6 Association Rule Mining
+
+```{r, include=FALSE}
+invisible(lapply(paste0('package:', names(sessionInfo()$otherPkgs)), detach, character.only=TRUE, unload=TRUE))
+library(tidyverse)
+library(ggplot2)
+
+library(arules)  # has a big ecosystem of packages built around it
+library(arulesViz)
+groceries <- read.csv("C:/MSBA22/STA380/Stats Repo/data/groceries.txt", header=FALSE, sep=";")
+
+#naming column of string list
+names(groceries) = 'origlist'
+
+#Adding a column where each entry is a vector with the items in the basket
+groceries$vec  = lapply(groceries$origlist, function (x) strsplit(x, ",", fixed=TRUE))
+
+#getting long list of vectors
+glist = lapply(groceries$vec, function(x) unlist(x))
+glist = lapply(glist, unique)
+
+#converting to transactions format
+groctrans = as(glist, "transactions")
+
+#applying apriori
+#Way fewer grocery items than artists so we use lower confidence as items are likely to appear on the left more
+groceryrules = apriori(groctrans, 
+	parameter=list(support=.005, confidence=.05, maxlen=3))
+
+
+```
+
+```{r, include=FALSE}
+#c=support(left+right)/support(left)
+
+inspect(groceryrules)
+#inspect(subset(groceryrules, subset=lift > 5))
+``` 
+
+We set our max length for the left hand side to three because there are only 126 unique items in our data set and we did not want to pick up much noise.
+
+In performing our inspection of association rules, we first looked at support values.
+
+```{r, echo=FALSE}
+inspect(subset(groceryrules, subset=support > 0.05))
+
+```
+The subsets with the highest support are all single items, which makes sense, as a series of items (how R interprets support) is most often less likely than a single item. 
+
+These discoveries all make logical sense.
+
+These high-support single items hit a maximum around .25, and those individual items with the most support are whole milk, other vegetables, rolls/buns, yogurt and soda. 
+
+Of the combinations, the support maxes out around .075. This is what we care about. The top combinations are rolls/buns and whole milk, other vegetables and whole milk, and whole milk and yogurt.
+
+Next, we looked at confidence and located those groups with high confidence ratings.
+
+```{r, echo=FALSE}
+inspect(subset(groceryrules, subset=confidence > 0.6))
+
+```
+The subsets with the highest confidence are all combinations, and very many of them involve whole milk as the right hand consequent. In fact, all of the consequents are either whole milk or other vegetables. Many of the antecedents include butter or domestic eggs. Confidence maxes out around .65.
+
+&nbsp;
+&nbsp;
+
+Here is a Plot of support and lift, with shading indicating confidence. This helps illustrate the relationships between the three.
+```{r, echo=FALSE}
+plot(groceryrules, measure = c("support", "lift"), shading = "confidence")
+#plot(groceryrules, method='two-key plot') ####WHAT THIS DO
+```
+
+
+
+We then created a group of antecedents and consequents that had a lift of one or greater, and a confidence
+of 0.25 or greater. This means that they are not substitutes, and lhs occurs at least .25 percent of the time given rhs. 
+
+This group is called "related." There are 615 pairs in our "related" subset.
+
+```{r, echo=FALSE}
+inspect(subset(groceryrules, subset=lift > 1 & confidence > 0.25))
+related = subset(groceryrules, subset=lift > 1 & confidence > 0.25)
+
+```
+
+Next, we plot our "related" subset out in a way that visualizes associations.
+```{r, echo=FALSE}
+
+plot(groceryrules, measure = c("lift", "confidence"), shading = "support")
+plot(groceryrules, method='two-key plot')
+
+inspect(related)
+plot(head(related,30,by='lift'), method='graph')
+
+```
+
+To evaluate substitute groups, we created a subset where lift is less than .75
+```{r}
+
+substitutes = subset(groceryrules, subset=lift < .75)
+inspect(substitutes)
+```
+This subset shows that beer and yogurt, beer and vegetables, beer and whole milk, and bottled beer and shopping bags are all substitutes. People who buy yogurt and vegetables are less likely to buy beer than those who do not. This may be because "beer runs" and actual grocery shopping fall into two different behavioral categories.
+
+&nsbp;
+
+Finally, we created another grouping to signify compliments, and identified these as groupings with high lift. Our lift cutoff is 3.05, which gives us a nice even group of 50 pairings.
+
+```{r, echo=FALSE}
+inspect(subset(groceryrules, subset=lift > 3.05))
+heavylifters = subset(groceryrules, subset=lift > 3.05)
+inspect(heavylifters)
+plot(head(heavylifters,30,by='lift'), method='graph')
+```
+The highest lifts are ham and white bread, butter/other vegetables and whipped/sour cream, and citrus fruit/pip fruit and tropical fruit. In looking through each of these high lift combinations and searching for unexpected associations, we find that they all make sense.

@@ -1,0 +1,335 @@
+---
+title: "P4 KNIT"
+output: html_document
+---
+
+#Problem 4: Market Segmentation
+```{r Market Data Cleaning, include=FALSE}
+
+library(ggplot2)
+library(LICORS)  # for kmeans++
+library(foreach)
+library(mosaic)
+library(tidyverse)
+library(cluster)
+library(fpc)
+library(corrplot)
+
+
+social = read.csv('social_marketing.csv')
+
+dim(social)
+head(social)
+
+## Removing chatter, spam, and adult columns which can all either be considered irrelevant or noise
+social$chatter = NULL
+social$spam = NULL
+social$adult = NULL
+
+
+# Center and scale the data
+X = social[,(2:34)]
+X = scale(X, center=TRUE, scale=TRUE)
+
+```
+
+In irst, we centered and scaled
+##Correlation Plot
+```{r Correlation Plot}
+# Correlation Matrix for the data set to help detect hidden patterns among the variables
+corr_data = round(cor(social[,2:34]), 2)
+corrplot(corr_data, method = "circle")
+
+#############################  Extracting the centers and scales  ##########################
+
+# Extract the centers and scales from the rescaled data (which are named attributes)
+mu = attr(X,"scaled:center")
+sigma = attr(X,"scaled:scale")
+```
+
+Below are the Top-3 Highest correlated variables:
+1.)  It looks like "personal_fitness" and "health_nutrition" are very highly correlated
+2.)  It looks like "college_univ" and "online_gaming" are very highly correlated
+3.)  It looks like "fashion" and "cooking" are very highly correlated
+
+Some other highly correlated variables include: 
+('religion' and 'sports_fandom'), ('politics' and 'travel'), and ('cooking' and 'beauty') among others
+
+
+##Elbow Plot
+```{r Elbow Plot}
+## Elbow Plot --> Trying many clustering with many different values of K
+
+X = scale(social[, 2:34])
+k_grid = seq(2, 20, by = 1)
+SSE_grid = foreach(k = k_grid, .combine = 'c') %do% {
+  cluster_k = kmeans(X, k, nstart = 50, iter.max = 15)
+  cluster_k$tot.withinss
+}
+
+k_grid
+SSE_grid
+
+## Creating the "Elbow" data frame with the 'k_grid' vector as x values, and with the 'SSE_grid' vector as y values
+elbow_data = data.frame(k_grid, SSE_grid)
+
+## Visualizing the Elbow Plot Results
+ggplot(elbow_data) +
+  geom_point(aes(x = k_grid, y = SSE_grid))
+```
+
+##CH Index
+```{r CH Index}
+#############################  CH Index   #################################
+
+## CH Index
+N = nrow(X)
+CH_grid = foreach(k = k_grid, .combine = 'c') %do% {
+  cluster_k = kmeans(X, k, nstart = 50)
+  W = cluster_k$tot.withinss
+  B = cluster_k$betweenss
+  CH = (B/W)*((N - k) / (k - 1))
+  CH
+}
+
+## Creating the "CH Index" data frame with the 'k_grid' vector as x values, and with the 'CH_grid' vector as y values
+CH_index_data = data.frame(k_grid, CH_grid)
+
+## Visualizing the CH Index Plot Results
+ggplot(CH_index_data) +
+  geom_point(aes(x = k_grid, y = CH_grid))
+
+```
+
+```{r Gap, include=FALSE}
+#############################  Gap Statistic (NOT WORKING)  #################################
+
+## NOT WORKING, NEED TO HIT RED STOP SIGN IN TOP RIGHT PART OF THE TERMINAL TO BREAK IT
+Gap = clusGap(x = X, FUNcluster = kmeans, K.max = 20, B = 50, nstart = 50)
+
+#Gap
+
+## Kept running, had to break the terminal. There were 50 or more warning messages
+## The majority of the warning messages said "did not converge in 10 iterations"
+## Tried Googling the error and one solution we found was to increase the value of K.max,
+## so we bumped it up from 5 to 20, and then ran it. However, it still didn't work. 
+
+```
+
+
+##K-Means 10 Clusters
+
+```{r K-Means 10 Clusters}
+library(fpc)
+# Running k-means with 10 clusters and 25 starts
+clust_10 = kmeans(X, 10, nstart=25)
+
+# Adding the the cluster number for each row as a new column in the 'social' dataframe
+social_clust_10 = cbind(social, clust_10$cluster)
+
+plotcluster(social[,2:34], clust_10$cluster)
+
+
+# Results of 10 Clusters
+social_clust_10_results = data.frame(cbind(clust_10$center[1,]*sigma + mu, 
+                                         clust_10$center[2,]*sigma + mu,
+                                         clust_10$center[3,]*sigma + mu,
+                                         clust_10$center[4,]*sigma + mu,
+                                         clust_10$center[5,]*sigma + mu,
+                                         clust_10$center[6,]*sigma + mu,
+                                         clust_10$center[7,]*sigma + mu,
+                                         clust_10$center[8,]*sigma + mu,
+                                         clust_10$center[9,]*sigma + mu,
+                                         clust_10$center[10,]*sigma + mu))
+
+### Seeing the results of 10 Clusters
+social_clust_10_results
+summary(social_clust_10_results)
+
+
+social_clust_10_results$Category = row.names(social_clust_10_results)
+
+social_clust_10_results$Category
+
+
+### Cluster 1 ---> Top 3 Categories are "politics", "travel", and "computers"
+
+ggplot(social_clust_10_results) +
+  geom_col(aes(x = reorder(Category, -X1), y = X1)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 1", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 2 ---> Top 3 Categories are "news", "politics", and "automotive"
+
+ggplot(social_clust_10_results) +
+  geom_col(aes(x = reorder(Category, -X2), y = X2)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 2", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 3 ---> Top 3 Categories are "health_nutrition", "personal_fitness", "cooking"
+
+ggplot(social_clust_10_results) +
+  geom_col(aes(x = reorder(Category, -X3), y = X3)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 3", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 4 ---> Top 3 Categories are "sports_fandom", "religion", "food"
+
+ggplot(social_clust_10_results) +
+  geom_col(aes(x = reorder(Category, -X4), y = X4)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 4", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 5 ---> Top 3 Categories are "photo_sharing", "current_events", "health_nutrition"
+
+ggplot(social_clust_10_results) +
+  geom_col(aes(x = reorder(Category, -X5), y = X5)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 5", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 6 ---> Top 3 Categories are "dating", "photo_sharing", "fashion"
+
+ggplot(social_clust_10_results) +
+  geom_col(aes(x = reorder(Category, -X6), y = X6)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 6", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 7 ---> Top 3 Categories are "cooking, "photo_sharing", "fashion" (SIMILAR TO CLUSTER 6!)
+
+ggplot(social_clust_10_results) +
+  geom_col(aes(x = reorder(Category, -X7), y = X7)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 7", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 8 ---> Top 3 Categories are "college_uni", "online_gaming", "sports_playing"
+
+ggplot(social_clust_10_results) +
+  geom_col(aes(x = reorder(Category, -X8), y = X8)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 8", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 9 ---> Top 3 Categories are "tv_film", "art", "college_univ"
+
+ggplot(social_clust_10_results) +
+  geom_col(aes(x = reorder(Category, -X9), y = X9)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 9", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 10 ---> Top 3 Categories are "photo_sharing", "shopping", "current_events"
+
+ggplot(social_clust_10_results) +
+  geom_col(aes(x = reorder(Category, -X10), y = X10)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 10", x ="Tweet Category", y = "Cluster Values")
+
+
+```
+
+```{r K-Means 5 Clusters}
+#############################  K-Means++  w/ 5 clusters  ###############################
+
+# Running K-means++  with 5 clusters and 25 starts
+clust_5 = kmeanspp(X, 5, nstart=25)
+
+# Viewing what cluster each row of the data set was put into via K-means++
+clust_5$cluster
+
+# Adding the the cluster number for each row as a new column in the 'social' dataframe
+social_clust_5 = cbind(social, clust_5$cluster)
+
+# Visualizing the plot with all 5 clusters (I googled and found the 'fpc' package online for clustering, 
+## which is to needed to run the plotcluster function)
+## Running it on the original, raw data
+plotcluster(social[, 2:34], clust_5$cluster, main = 'Clusters on raw Data')
+## Running it on the centered and scaled data
+plotcluster(X, clust_5$cluster, main = 'Clusters on Scaled Data')
+
+X
+summary(X)
+clust_5$cluster
+
+# Results of 5 Clusters
+
+social_clust_5_results = data.frame(cbind(clust_5$center[1,]*sigma + mu, 
+                                          clust_5$center[2,]*sigma + mu,
+                                          clust_5$center[3,]*sigma + mu,
+                                          clust_5$center[4,]*sigma + mu,
+                                          clust_5$center[5,]*sigma + mu))
+
+### Seeing the results of 5 Clusters
+social_clust_5_results
+summary(social_clust_5_results)
+
+
+social_clust_5_results$Category = row.names(social_clust_5_results)
+
+social_clust_5_results$Category
+
+
+### Cluster 1 ---> Top 3 Categories are "health_nutrition", "personal_fitness", and "cooking"
+
+ggplot(social_clust_5_results) +
+  geom_col(aes(x = reorder(Category, -X1), y = X1)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 1", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 2 ---> Top 3 Categories are "politics", "travel", and "news"
+
+ggplot(social_clust_5_results) +
+  geom_col(aes(x = reorder(Category, -X2), y = X2)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 2", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 3 ---> Top 3 Categories are "politics", "travel", "news"
+
+ggplot(social_clust_5_results) +
+  geom_col(aes(x = reorder(Category, -X3), y = X3)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 3", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 4 ---> Top 3 Categories are "cooking", "photo_sharing", "health_nutrition"
+
+ggplot(social_clust_5_results) +
+  geom_col(aes(x = reorder(Category, -X4), y = X4)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 4", x ="Tweet Category", y = "Cluster Values")
+
+
+### Cluster 5 ---> Top 3 Categories are "health_nutrition", "personal_fitness", "cooking"
+
+ggplot(social_clust_5_results) +
+  geom_col(aes(x = reorder(Category, -X5), y = X5)) + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) +
+  labs(title="Cluster 5", x ="Tweet Category", y = "Cluster Values")
+
+
+```
+## Final Results
+Based on the results of the K-Means with 5 clusters, we can identify some interesting market segments that appear to stand out in their social media audience. The large consumer brand "NutrientH20" can focus their marketing and advertising on specific cluster groups in order to maximize their outreach. For example, with one of the Clusters, they can target consumers that are interested in "health_nutrition", "personal_fitness" and "cooking" all at the same time On the other hand, using the results from another Cluster, they can target consumers that are interested in "politics", "travel" and "news" all at the same time.
+
+```{r Cluster Make-Ups}
+# Which rows are in which clusters?
+which(clust_5$cluster == 1)
+which(clust_5$cluster == 2)
+which(clust_5$cluster == 3)
+which(clust_5$cluster == 4)
+which(clust_5$cluster == 5)
+
+X
+
+
+# A few plots with cluster membership shown ----> 
+qplot(cooking, photo_sharing, data=social, color=factor(clust_5$cluster == 1))
+qplot(politics, travel, data=social, color=factor(clust_5$cluster == 4))

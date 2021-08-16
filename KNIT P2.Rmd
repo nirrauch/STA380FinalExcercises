@@ -1,0 +1,102 @@
+---
+title: "KNIT P2"
+output: html_document
+---
+
+#Visual Story Telling 2: Flights at ABIA
+
+```{r, warning=FALSE, include=FALSE}
+#ABIA <- read.csv("C:/MSBA22/STA380/Stats Repo/data/ABIA.csv")
+library(ggplot2)
+library(plyr)
+library(dplyr)
+ABIA = read.csv('ABIA.csv')
+
+ABIA$DayOfWeek = factor(ABIA$DayOfWeek)
+
+ABIAclean = ABIA
+ABIAclean[is.na(ABIAclean)] = 0
+
+#Subset where Arrival was delayed. 
+delays = ABIAclean[ABIAclean$ArrDelay>0,]
+#Keeping all forms of delay and Airline 
+delays = delays[,c(15,16,25:29,9)]
+delays_ = delays[c(3:7)]
+delays_[is.na(delays_)] = 0
+#Finds max value for delay and puts col name in Longest day 
+delays$LongestDelay = colnames(delays_)[apply(delays_,1,which.max)]
+#delays$ArrDelay = ABIA$ArrDelay[delays,]
+carrier_vals = as.data.frame(table(delays$UniqueCarrier))
+names(carrier_vals) = c('UniqueCarrier','Freq')
+delays = join(delays,carrier_vals, by = 'UniqueCarrier', type='left')
+```
+
+In evaluating the flights into and out of Austin, we first looked at the delays grouped by the day of the week.
+
+&nbsp;
+
+```{r Data Exploration, echo=FALSE}
+ggplot(ABIAclean, aes(x=ArrDelay, y=DayOfWeek, color=DayOfWeek)) +
+  geom_boxplot() +
+  coord_flip()
+
+
+
+```
+There is no obvious difference in arrival delays per day of the week.
+
+&nbsp;
+
+Next, we decided to give this analysis a bit more context by evaluating the number of flights into and out of Austin by airline. 
+
+&nbsp;
+
+```{r fig.height= 4, fig.width = 8,echo=FALSE}
+ggplot(ABIAclean, aes(UniqueCarrier, color = UniqueCarrier)) +
+    geom_bar(fill = 'white') 
+
+
+```
+
+Southwest and American Airlines have the most flights in and out of Austin. More importantly, there is a good bit of variation in flight total by airline. 
+
+&nbsp;
+
+
+Next, we looked at the total delay time for each airline, shaded by the cause of the delay.
+
+&nbsp;
+
+
+```{r, fig.height= 4.5, fig.width = 8,echo=FALSE}
+ggplot(delays, aes( x = UniqueCarrier, y = ArrDelay, fill = LongestDelay ) ) + 
+      geom_bar( stat = "identity", position = "stack" ) +
+      #coord_flip() +
+      scale_fill_brewer( palette = "YlGnBu" ) +
+      theme_minimal() + theme(legend.position = "bottom" )+
+      ggtitle('Airlines By Cause of Delay')
+
+```
+As we noted previously, Southwest and American Airlines make the most flights in and out of ABIA, and thus have the most delay. As we can see, the most frequent cause of delays is 'Late Aircraft Delay' indicating there may be some timeliness issues with the pilots and crews at ABIA. 
+
+
+&nbsp;
+
+Finally, we decide to standardize total delay time for number of flights. This allows us to visualize and evaluate airline efficiency without the confounding factor of flight count.
+
+&nbsp;
+
+```{r, fig.height= 4.5, fig.width = 8,echo=FALSE}
+ggplot(delays, aes( x = UniqueCarrier, y = ArrDelay/Freq, fill = LongestDelay ) ) + 
+      geom_bar( stat = "identity")+
+      #coord_flip() +
+      scale_fill_brewer( palette = "YlGnBu" ) +
+      theme_minimal() + theme(legend.position = "bottom" )+
+      ggtitle('Airlines By Cause of Delay, Standardized for total Flights')
+
+```
+
+&nbsp;
+
+As we can see on this chart, JetBlue (IATA Code: B6) has the longest delays per flight, and  Puerto Rico Airline (IATA Code: US) has the least delayed flights on average. ExpressJet (IATA Code: EV) had the most weather delays per flight of any airline followed by PSA (IATA Code: OH). To counter this, these two airlines had some of the lowest 'Late Aircraft Delay' minutes indicating that the airline is successful in employing efficient pilots and crews. Mesa Airlines (IATA Code: YV) has the longest average carrier delay indicating they may not be the best option for those on a tight schedule.
+

@@ -1,0 +1,168 @@
+---
+title: "P3 KNIT"
+output: html_document
+---
+
+#Problem 3: Portfolio Modeling
+
+```{r Portfolio Modeling, include=FALSE}
+library(mosaic)
+library(quantmod)
+library(foreach)
+
+# Import a few stocks
+#mystocks = portfoliox
+
+
+
+portfolio1 = c("SPY", "VTI", "VOO", "QQQ", "DIA", "SCHX")
+portfolio2 = c("VDE", "XES", "PSCE", "PXE")
+portfolio3 = c("VWO", "SCHE", "GEM", "JEMA", "SPEM")
+
+portfolios = list(portfolio1,portfolio2,portfolio3)
+```
+
+
+In this Monte Carlo Simulation we were tasked with comparing 3 portfolios of ETFs and comparing their performance. 
+
+Our team selected to create **Portfolio 1** using 6 of the largest ETFs on the market, focused on Large Cap Growth Stocks. These ETFs typically hold the large tech companies like Apple, Microsoft, and Alphabet, as well as other Blue Chip firms like Berkshire Hathaway, Johnson and Johnson, and JP Morgan Chase. The often track indexes like the S&P 500 or DJI to track the market, however focus on long term growth for their holders. 
+
+**Portfolio 1 = Large Cap Growth:**
+
+&nbsp;
+*SPY - S&P 500 ETF Trust*
+
+&nbsp;
+*VTI - Vanguard Total Stock Market ETF*
+
+&nbsp;
+*VOO - Vanguard S&P 500 ETF*
+
+&nbsp;
+*QQQ - Invesco QQQ Trust*
+
+&nbsp;
+*DIA - Dow Jones Indus Average ETF*
+
+&nbsp;
+*SCHX - Schwab US Large Cap ETF*
+
+&nbsp;
+
+
+**Portfolio 2** is focused on Energy ETFs. These funds invest in energy companies, research groups, and commodities to achieve returns on the fluctuating energy market. The last year in particular has been incredibly volatile for energy companies, and our team figured it would be interesting to see the difference between a stable portfolio like Portfolio 1 and a volatile one like Portfolio 2. 
+
+
+**Portfolio 2 = Energy (Oil Gas):** 
+
+&nbsp;
+*VDE - Vanguard Energy*
+
+&nbsp;
+*XES - S&P oil and gas*
+
+&nbsp;
+*PSCE - Small Cap Energy Fund*
+
+&nbsp;
+*PXE - Oil and gas exploration*
+
+&nbsp;
+
+
+**Portfolio 3** contains 5 Emerging Market Funds, intentionally not focused on a specific region or state. While a vast majority of the companies held in Portfolio 1 are American, our team wanted to investigate how successful nations deemed "emerging markets" have been, particularly with data that includes the Covid-19 market crashes. Some of the countries represented in this portfolio are: China, South Africa, South Korea, Russia, and India. 
+
+**Portfolio 3 = Emerging Markets:**
+
+&nbsp;
+*VWO - Vanguard Emerging Markets*
+
+&nbsp;
+*SCHE - Schwab Emerging Markets*
+
+&nbsp;
+*GEM - Goldman Sachs Emerging Markets*
+
+&nbsp;
+*JEMA - JP Morgan Emerging Markets*
+
+&nbsp;
+*SPEM - S&P Emerging Funds*
+
+```{r Monte Carlo Simulation for Each Portfolio, echo=FALSE, getSymbols.warning4.0=FALSE, warning=FALSE}
+
+#for each portfolio:
+counterr=1
+
+for (portfolio in portfolios) {
+  adjport = c()
+
+  #Import
+  my_prices = getSymbols(portfolio, from = "2016-08-09")
+  
+  
+  #adjust all etfs
+  for(ticker in portfolio) {
+	  expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+	  eval(parse(text=expr))
+	  
+	  #Add adjusted etf names to a list to use for all returns
+	  adjport = append(adjport,paste0(ticker, "a"))
+  }
+  all_returns = cbind()
+  for (r in adjport) {
+    #print(r)
+    all_returns = cbind(all_returns,ClCl(eval(parse(text=r))))
+  }
+  #head(all_returns)
+  all_returns = as.matrix(na.omit(all_returns))
+  #pairs(all_returns)
+  
+  #return.today = resample(all_returns, 1, orig.ids=FALSE)
+  
+  initial_wealth = 100000
+
+  sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+	        total_wealth = initial_wealth
+          weights = c(rep(1/length(portfolio),length(portfolio)))	
+          holdings = weights * total_wealth
+        	n_days = 20
+        	wealthtracker = rep(0, n_days)
+        	for(today in 1:n_days) {
+        		return.today = resample(all_returns, 1, orig.ids=FALSE)
+        		holdings = holdings + holdings*return.today
+        		total_wealth = sum(holdings)
+        		wealthtracker[today] = total_wealth
+        		holdings = weights * total_wealth
+        	  }
+        	wealthtracker
+  }
+  
+  # each row is a simulated trajectory
+  # each column is a data
+  #print(head(sim1))
+  hist(sim1[,n_days], 25,
+       main = paste0("Portfolio ", counterr, " total expected value"))
+  
+  # Profit/loss
+  print(paste("The expected value is ",mean(sim1[,n_days])))
+  hist(sim1[,n_days]- initial_wealth, breaks=30,
+       main = paste0("Portfolio ", counterr, " total expected gain"))
+  print(paste("The expected gain is: ", mean(sim1[,n_days] - initial_wealth)))
+  
+
+  # 5% value at risk:
+  print(paste0("The 5% VAR is: $", abs(quantile(sim1[,n_days]- initial_wealth, prob=0.05))))
+  
+  # note: this is  a negative number (a loss, e.g. -500), but we conventionally
+  # express VaR as a positive number (e.g. 500)
+  
+  counterr = counterr+1
+}  
+```
+
+Within the last 5 years, the stock market has faired relatively well. For the first 3.5 years, the market was considered one of the strongest ever and investors were astounded at their returns. Since March of 2019, the Covid-19 pandemic hampered the market for months and caused a crash. Since this period the market has recovered, however this variability in total market performance may yield interesting returns in this simulation. 
+For Portfolio 1 (Large Cap Growth funds), over a 5000 day simulation, we were able to earn \$1577.157. This is approximately a 1.5% return which is modest given the time period. At the 5% risk level, this portfolio's VaR was \$7068.17, indicating that in the worst 5% of cases, this portfolio lost around 7% of it's initial value. In the Histograms for Portfolio 1, we can see a data point that achieved over a $30,000 gain which is pretty spectacular for any ETF over 5000 simulations. Overall, Large Cap 'Growth' funds do not appear to have grown that consistently in the last 5 years. 
+
+For Portfolio 2 (Energy Based Funds), the model actually predicted a \$200 loss 
+  

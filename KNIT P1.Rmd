@@ -1,0 +1,409 @@
+---
+title: "RMD P1"
+output: html_document
+---
+
+```{r, include=FALSE}
+
+library(ggplot2)
+library(GGally) 
+
+#reading in the data
+mydata<-read.csv("greenbuildings.csv")
+#mydata = greenbuildings
+```
+#Visual Story Telling 1: GreenBuildings
+
+```{r, include=FALSE}
+mydata$renovated = as.factor(mydata$renovated)
+mydata$class_a = as.factor(mydata$class_a)
+mydata$class_b = as.factor(mydata$class_b)
+mydata$LEED = as.factor(mydata$LEED)
+mydata$Energystar = as.factor(mydata$Energystar)
+mydata$green_rating = as.factor(mydata$green_rating)
+mydata$amenities = as.factor(mydata$amenities)
+```
+
+Regarding the analysis performed by the "stats guru," we believe that he does decent introductory exploration, but neglects a multitude of key factors including leasing rate and building quality in green versus nongreen buildings, which confounds his results.
+
+While our study does replicate some of his ideas, we provide a more complete analysis below: 
+We began our exploratory analysis by creating density plots of some explanatory variables.
+
+&nbsp;
+
+Rent Density:
+
+```{r fig1, fig.height= 3, fig.width = 4, echo=FALSE}
+#rent density
+mydata %>%
+  ggplot( aes(x=Rent)) +
+  geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8) +
+  ggtitle("Density of Rent Prices")
+```
+
+Rent density for all homes appears approxomately normal. 
+
+&nbsp;
+
+Square Footage Density:
+
+```{r fig2, fig.height= 3, fig.width = 4, echo=FALSE}
+#square footage density
+mydata %>%
+  ggplot( aes(x=size)) +
+  geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8) +
+  ggtitle("Density of Square Footage")
+  options(scipen=10000)
+```
+
+Square footage density is concentrated at the lower end. This seems obvious.
+
+&nbsp;
+
+Leasing Rate Density:
+
+```{r fig3, fig.height= 3, fig.width = 4, echo=FALSE}
+#leasing rate density
+mydata %>%
+  ggplot( aes(x=leasing_rate)) +
+  geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8) +
+  ggtitle("Density of occupancy")
+```
+
+Leasing rate is, for the most part, above 75%.
+
+However, we see what the "status guru" noted: a small but noticeable amount of occupies are below 10%. 
+We also decide to remove these, as they may be unoccupied or typos.
+
+```{r, include=FALSE}
+#removing all of the buildings with less than 10% leasing rate
+mydata = mydata[mydata$leasing_rate >= 10,]
+```
+
+&nbsp;
+
+Stories Density:
+
+```{r fig4, fig.height= 3, fig.width = 4, echo=FALSE}
+mydata %>%
+  ggplot( aes(x=stories)) +
+  geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8) +
+  ggtitle("Density of stories")
+```
+
+Nothing unexpected to report here.
+&nbsp;
+&nbsp;
+
+Next, we ran a multiple linear regression predicting our Rent variable. This is simply meant to determine variable importances, and give our exploratory analysis some additional context.
+
+```{r, include=FALSE}
+#creating expected rent variable, leasng rate * rent (expected money per room)
+mydata$expected_rent = (.01)*mydata$leasing_rate*mydata$Rent
+```
+
+
+```{r, include= FALSE}
+#fitting a linear regression
+fit <- lm(Rent ~ size + empl_gr + leasing_rate + stories + age + renovated + class_a + class_b + green_rating + LEED + Energystar + net + amenities + cd_total_07 + hd_total07 + total_dd_07 + Precipitation + Gas_Costs + Electricity_Costs, data = mydata)
+summary(fit)
+```
+
+&nbsp;
+
+**Variables that were significant at all levels are:**
+
+&nbsp;
+*Size
+
+&nbsp;
+*Employment Growth
+
+&nbsp;
+*Leasing Rate
+
+&nbsp;
+*Stories
+
+&nbsp;
+*Renovated
+
+&nbsp;
+*Class A1
+
+&nbsp;
+*Class B1
+
+&nbsp;
+*Net Contract Rent
+
+&nbsp;
+*Cooling Days
+
+&nbsp;
+*Heating Days
+
+&nbsp;
+*Precipitation
+
+&nbsp;
+*Gas Costs
+
+&nbsp;
+*Electricity Costs
+&nbsp;
+
+&nbsp;
+
+**Variables that were significant at the 5% level are:**
+
+&nbsp;
+*Ameneties 
+
+&nbsp;
+*Age
+
+&nbsp;
+
+Surprisingly, LEED, Energystar, and Green Rating are all insignificant.
+
+We assume that this insignificance is because there is multicolinearity between Green Rating and other important variables, like Leasing Rate, Age, Size, Renovated, Gas Costs and Electricity Costs. 
+
+Investigating this led us to the realization that, due to the clustered nature of the data, which is averaged by all buildings in the location, we cannot evaluate the Gas Costs, or Electricity Costs for Green versus Non-green buildings. 
+However, Leasing Rate, Age, Size and Renovated are all not subject to clustering averages.
+
+
+&nbsp;
+
+**Next, we split the data into Green Buildings and Non-Green Buildings**
+
+```{r, include=FALSE}
+#all buildings that are green, all buildings that aren't green
+greenbuildings <- mydata[mydata$green_rating == 1,]
+nongreen <- mydata[mydata$green_rating != 1,]
+```
+
+Now we compare the square footage of Green and Non-Green buildings
+
+```{r fig5, fig.height= 3, fig.width = 4, echo=FALSE}
+#histograms of square footage and stories if a building is green or not
+qplot(greenbuildings$size,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green Buildings Size",  
+      fill=I("blue"), 
+      col=I("red"),
+      bins=30,
+      alpha=I(.2))
+
+qplot(nongreen$size,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Non-Green Buildings Size",  
+      fill=I("blue"), 
+      col=I("red"), 
+      bins=30,
+      alpha=I(.2))
+```
+
+The building sizes are consistent.
+
+&nbsp;
+
+We suspect that green buildings may have a higher average leasing rate.
+```{r, echo=FALSE}
+bp2<-ggplot(mydata, aes(x=green_rating, y=leasing_rate, color=green_rating)) +
+  geom_boxplot() +
+  coord_flip()
+bp2
+```
+
+Leasing rates in green buildings:
+
+```{r, echo=FALSE}
+summary(greenbuildings$leasing_rate)
+```
+
+Leasing rates in nongreen buildings:
+```{r, echo=FALSE}
+summary(nongreen$leasing_rate)
+```
+
+Green buildings do have a higher leasing rate, by about 5%. We use the mean to evaluate this, because outliers are not a problem in evaluating leasing rate. This was overlooked by the stats guru. What an idiot.
+
+&nbsp;
+
+&nbsp;
+
+We also suspect that green buildings have higher average rents than non-green buildings.
+```{r, echo=FALSE}
+bp2<-ggplot(mydata, aes(x=green_rating, y=Rent, color=green_rating)) +
+  geom_boxplot() +
+  coord_flip()
+bp2
+```
+
+Rent in green buildings:
+
+```{r, echo=FALSE}
+summary(greenbuildings$Rent)
+```
+
+Rent in nongreen buildings:
+```{r, echo=FALSE}
+summary(nongreen$Rent)
+```
+
+They do, by about $2.50, we use median here because rent is subject to outliers. This conclusion is similar to the stats guru.
+
+
+&nbsp;
+
+Next we create a variable called "Expected Rent," which multiplies leasing rate by rent, and determines the expected monthly rent per room.
+
+
+&nbsp;
+
+Visualizing expected rent for green and Non-Green buildings
+
+
+```{r fig6, fig.height= 4, fig.width = 5, echo=FALSE}
+qplot(greenbuildings$expected_rent,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green Expected Rent",
+      fill=I("blue"), 
+      bins=30,
+      col=I("red"), 
+      alpha=I(.2))
+```
+Expected rent in green buildings:
+
+```{r, echo=FALSE}
+summary(greenbuildings$expected_rent)
+```
+
+
+```{r fig7, fig.height= 4, fig.width = 5, echo=FALSE}
+qplot(nongreen$expected_rent,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Nongreen Expected Rent",
+      fill=I("blue"), 
+      bins=30,
+      col=I("red"), 
+      alpha=I(.2))
+```
+
+Expected rent in nongreen buildings:
+
+```{r, echo=FALSE}
+summary(nongreen$expected_rent)
+```
+
+When comparing expected rent per  room, green buildings win by about $3.
+
+We visualize this relationship again below with a boxplot.
+
+```{r, echo=FALSE}
+bp3<-ggplot(mydata, aes(x=green_rating, y=expected_rent, color=green_rating)) +
+  geom_boxplot() +
+  coord_flip()
+bp3
+```
+
+
+Unlike the stats guru, we are not comfortable estimating the time it would take to make the $5 million dollars back, because we do not know the room sizes, the exact location (where in Austin), the demand for green housing in Austin relative to other cities, or what the heating and cooling days may look like, among many other potential confounders. However, we can confidently say that there are higher rents **and** higher leasing rates in green buildings than in non-green buildings.
+
+
+Finally, if she is going to build a green building, we want to determine wether class A or class B is more cost-efficient.
+
+We separate our green buildings into green A and green B.
+
+````{r, include=FALSE}
+#####separating green buildings into classes
+greena <- greenbuildings[greenbuildings$class_a == 1,]
+greenb <- greenbuildings[greenbuildings$class_b ==1,]
+```
+
+
+First, we look at the rent of green A versus green B buildings.
+
+```{r, fig.height= 3, fig.width = 4, echo=FALSE}
+qplot(greena$Rent,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green A Rent",  
+      fill=I("blue"), 
+      col=I("red"), 
+      bins=30,
+      alpha=I(.2))
+summary(greena$Rent)
+
+qplot(greenb$Rent,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green B Rent",  
+      fill=I("blue"), 
+      col=I("red"), 
+      bins=30,
+      alpha=I(.2))
+summary(greenb$Rent)
+```
+Green A has a higher Rent by about $4.
+This is expected.
+
+Next, we look at the difference in leasing rate between green A and green B buildings.
+```{r, fig.height= 3, fig.width = 4,echo=FALSE}
+qplot(greena$leasing_rate,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green A Leasing Rate",  
+      fill=I("blue"), 
+      col=I("red"), 
+      bins=30,
+      alpha=I(.2))
+summary(greena$leasing_rate)
+
+qplot(greenb$leasing_rate,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green B Leasing Rate",  
+      fill=I("blue"), 
+      col=I("red"), 
+      bins=30,
+      alpha=I(.2))
+summary(greenb$leasing_rate)
+```
+Green A is also about 4% more occupied.
+This was not expected, and leads us to conclude that she should build a nicer green building (type A).
+
+Finally, we compare the expected rent of both building types.
+
+```{r, fig.height= 3, fig.width = 4,echo=FALSE}
+qplot(greena$expected_rent,
+     geom="histogram",
+     ylab = "Frequency", 
+     xlab = "Green A Expected Rent",  
+     fill=I("blue"), 
+     col=I("red"), 
+     bins=30,
+     alpha=I(.2))
+summary(greena$expected_rent)
+
+qplot(greenb$expected_rent,
+      geom="histogram",
+      ylab = "Frequency", 
+      xlab = "Green B Expected Rent",  
+      fill=I("blue"), 
+      col=I("red"), 
+      bins=30,
+      alpha=I(.2))
+summary(greenb$expected_rent)
+```
+As anticipated, the expected rent is higher for green A buildings. However, looking at the leasing_rates is more informative here.
+
+&nbsp;
+
+We conclude that a green building, on average, generates more money per-room, due to a mixture of higher rents and higher leasing rates. Additionally, green A buildings are 4% more occupied than green B buildings. More research regarding external factors is necessary in deciding to proceed with the project, but if the choice to proceed is made, she should build a green type A building.
+
