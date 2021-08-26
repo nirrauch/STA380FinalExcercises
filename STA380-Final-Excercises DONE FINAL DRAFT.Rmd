@@ -42,7 +42,7 @@ mydata %>%
   ggtitle("Density of Rent Prices")
 ```
 
-Rent density for all homes appears approxomately normal. 
+Rent density for all homes appears approximately normal. 
 
 &nbsp;
 
@@ -196,7 +196,9 @@ qplot(greenbuildings$size,
       col=I("red"),
       bins=30,
       alpha=I(.2))
+```
 
+```{r, fig.height= 3, fig.width = 4,echo=FALSE}
 qplot(nongreen$size,
       geom="histogram",
       ylab = "Frequency", 
@@ -212,6 +214,7 @@ The building sizes are consistent.
 &nbsp;
 
 We suspect that green buildings may have a higher average leasing rate.
+
 ```{r, echo=FALSE}
 bp2<-ggplot(mydata, aes(x=green_rating, y=leasing_rate, color=green_rating)) +
   geom_boxplot() +
@@ -226,6 +229,7 @@ summary(greenbuildings$leasing_rate)
 ```
 
 Leasing rates in nongreen buildings:
+
 ```{r, echo=FALSE}
 summary(nongreen$leasing_rate)
 ```
@@ -237,6 +241,7 @@ Green buildings do have a higher leasing rate, by about 5%. We use the mean to e
 &nbsp;
 
 We also suspect that green buildings have higher average rents than non-green buildings.
+
 ```{r, echo=FALSE}
 bp2<-ggplot(mydata, aes(x=green_rating, y=Rent, color=green_rating)) +
   geom_boxplot() +
@@ -251,6 +256,7 @@ summary(greenbuildings$Rent)
 ```
 
 Rent in nongreen buildings:
+
 ```{r, echo=FALSE}
 summary(nongreen$Rent)
 ```
@@ -278,6 +284,7 @@ qplot(greenbuildings$expected_rent,
       col=I("red"), 
       alpha=I(.2))
 ```
+
 Expected rent in green buildings:
 
 ```{r, echo=FALSE}
@@ -340,7 +347,9 @@ qplot(greena$Rent,
       bins=30,
       alpha=I(.2))
 summary(greena$Rent)
+```
 
+```{r, fig.height= 3, fig.width = 4, echo=FALSE}
 qplot(greenb$Rent,
       geom="histogram",
       ylab = "Frequency", 
@@ -351,10 +360,12 @@ qplot(greenb$Rent,
       alpha=I(.2))
 summary(greenb$Rent)
 ```
+
 Green A has a higher Rent by about $4.
 This is expected.
 
 Next, we look at the difference in leasing rate between green A and green B buildings.
+
 ```{r, fig.height= 3, fig.width = 4,echo=FALSE}
 qplot(greena$leasing_rate,
       geom="histogram",
@@ -365,7 +376,9 @@ qplot(greena$leasing_rate,
       bins=30,
       alpha=I(.2))
 summary(greena$leasing_rate)
+```
 
+```{r, fig.height= 3, fig.width = 4,echo=FALSE}
 qplot(greenb$leasing_rate,
       geom="histogram",
       ylab = "Frequency", 
@@ -376,6 +389,7 @@ qplot(greenb$leasing_rate,
       alpha=I(.2))
 summary(greenb$leasing_rate)
 ```
+
 Green A is also about 4% more occupied.
 This was not expected, and leads us to conclude that she should build a nicer green building (type A).
 
@@ -391,7 +405,9 @@ qplot(greena$expected_rent,
      bins=30,
      alpha=I(.2))
 summary(greena$expected_rent)
+```
 
+```{r, fig.height= 3, fig.width = 4,echo=FALSE}
 qplot(greenb$expected_rent,
       geom="histogram",
       ylab = "Frequency", 
@@ -411,7 +427,6 @@ We conclude that a green building, on average, generates more money per-room, du
 #Visual Story Telling 2: Flights at ABIA
 
 ```{r, warning=FALSE, include=FALSE}
-#ABIA <- read.csv("C:/MSBA22/STA380/Stats Repo/data/ABIA.csv")
 library(ggplot2)
 library(plyr)
 library(dplyr)
@@ -504,11 +519,6 @@ ggplot(delays, aes( x = UniqueCarrier, y = ArrDelay/Freq, fill = LongestDelay ) 
 &nbsp;
 
 As we can see on this chart, JetBlue (IATA Code: B6) has the longest delays per flight, and  Puerto Rico Airline (IATA Code: US) has the least delayed flights on average. ExpressJet (IATA Code: EV) had the most weather delays per flight of any airline followed by PSA (IATA Code: OH). To counter this, these two airlines had some of the lowest 'Late Aircraft Delay' minutes indicating that the airline is successful in employing efficient pilots and crews. Mesa Airlines (IATA Code: YV) has the longest average carrier delay indicating they may not be the best option for those on a tight schedule.
-
----
-title: "P3 KNIT"
-output: html_document
----
 
 #Problem 3: Portfolio Modeling
 
@@ -1296,7 +1306,7 @@ groceryrules = apriori(groctrans,
 ```{r, include=FALSE}
 #c=support(left+right)/support(left)
 
-inspect(groceryrules)
+#inspect(groceryrules)
 #inspect(subset(groceryrules, subset=lift > 5))
 ``` 
 
@@ -1341,7 +1351,7 @@ of 0.25 or greater. This means that they are not substitutes, and lhs occurs at 
 This group is called "related." There are 615 pairs in our "related" subset.
 
 ```{r, echo=FALSE}
-inspect(subset(groceryrules, subset=lift > 1 & confidence > 0.25))
+#inspect(subset(groceryrules, subset=lift > 1 & confidence > 0.25))
 related = subset(groceryrules, subset=lift > 1 & confidence > 0.25)
 
 ```
@@ -1352,7 +1362,6 @@ Next, we plot our "related" subset out in a way that visualizes associations.
 plot(groceryrules, measure = c("lift", "confidence"), shading = "support")
 plot(groceryrules, method='two-key plot')
 
-inspect(related)
 plot(head(related,30,by='lift'), method='graph')
 
 ```
@@ -1361,7 +1370,6 @@ To evaluate substitute groups, we created a subset where lift is less than .75
 ```{r}
 
 substitutes = subset(groceryrules, subset=lift < .75)
-inspect(substitutes)
 ```
 This subset shows that beer and yogurt, beer and vegetables, beer and whole milk, and bottled beer and shopping bags are all substitutes. People who buy yogurt and vegetables are less likely to buy beer than those who do not. This may be because "beer runs" and actual grocery shopping fall into two different behavioral categories.
 
@@ -1370,9 +1378,8 @@ This subset shows that beer and yogurt, beer and vegetables, beer and whole milk
 Finally, we created another grouping to signify compliments, and identified these as groupings with high lift. Our lift cutoff is 3.05, which gives us a nice even group of 50 pairings.
 
 ```{r, echo=FALSE}
-inspect(subset(groceryrules, subset=lift > 3.05))
+
 heavylifters = subset(groceryrules, subset=lift > 3.05)
-inspect(heavylifters)
 plot(head(heavylifters,30,by='lift'), method='graph')
 ```
 The highest lifts are ham and white bread, butter/other vegetables and whipped/sour cream, and citrus fruit/pip fruit and tropical fruit. In looking through each of these high lift combinations and searching for unexpected associations, we find that they all make sense.
